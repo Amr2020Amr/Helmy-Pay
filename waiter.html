@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشة كابتن الصالة</title>
+    <!-- استدعاء مكتبة Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; direction: rtl; }
+        h2 { color: #333; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .order-item { padding: 12px; margin: 8px 0; border-radius: 8px; color: white; font-weight: bold; }
+        .pending { background: #ff9800; } /* برتقالي: قيد الانتظار لم يسجله الكاشير بعد */
+        .registered { background: #28a745; } /* أخضر: تم التسجيل بواسطة الكاشير */
+    </style>
+</head>
+<body>
+
+    <h2>إرسال طلب جديد</h2>
+    <div class="card">
+        <label>رقم الطاولة:</label>
+        <input type="text" id="tableNum" placeholder="مثال: طاولة 5">
+        
+        <label>تفاصيل الأوردر (المنيو):</label>
+        <input type="text" id="orderDetails" placeholder="مثال: 2 قهوة مظبوط، 1 عصير مانجو">
+        
+        <button onclick="sendOrder()">إرسال الطلب</button>
+    </div>
+
+    <h2>متابعة حالة طلبات الصالة (تحديث لحظي)</h2>
+    <div id="ordersList" class="card">
+        <p>جاري تحميل الطلبات...</p>
+    </div>
+
+<script>
+    // ربط النظام بقاعدة بيانات Supabase الخاصة بك مع المفاتيح المضمنة
+    const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // اسم الكابتن الحالي (يمكن تخصيصه لاحقاً بناءً على صفحة تسجيل الدخول)
+    const waiterName = "كابتن الصالة"; 
+
+    // دالة إرسال الطلب الجديد
+    async function sendOrder() {
+        const table = document.getElementById('tableNum').value.trim();
+        const details = document.getElementById('orderDetails').value.trim();
+
+        if(!table || !details) {
+            alert("الرجاء إدخال رقم الطاولة وتفاصيل الطلب");
+            return;
+        }
+
+        const { error } = await _supabase.from('orders').insert([
+            {
+                waiter_name: waiterName,
+                table_number: table,
+                items_details: details,
+                status: 'pending' // يبدأ باللون البرتقالي (قيد الانتظار)
+            }
+        ]);
+
+        if(error) {
+            alert("حدث خطأ أثناء إرسال الطلب: " + error.message);
+        } else {
+            alert("تم إرسال الطلب بنجاح إلى الكاشير!");
+            document.getElementById('tableNum').value = '';
+            document.getElementById('orderDetails').value = '';
+            loadMyOrders();
+        }
+    }
+
+    // دالة جلب وعرض الطلبات ومتابعة تغيير الألوان لحظياً
+    async function loadMyOrders() {
+        const { data, error } = await _supabase
+            .from('orders')
+            .select('*')
+            .order('id', { ascending: false });
+
+        const listDiv = document.getElementById('ordersList');
+        listDiv.innerHTML = '';
+
+        if(data && data.length > 0) {
+            data.forEach(order => {
+                // التحقق من الحالة: إذا سجلها الكاشير تصبح خضراء، وإلا فتبقى برتقالية
+                let statusClass = order.status === 'registered' ? 'registered' : 'pending';
+                let statusText = order.status === 'registered' ? 'تم التسجيل بواسطة الكاشير (أخضر)' : 'قيد الانتظار - في انتظار الكاشير (برتقالي)';
+                
+                listDiv.innerHTML += `
+                    <div class="order-item ${statusClass}">
+                        رقم الطاولة: ${order.table_number} <br>
+                        الطلب: ${order.items_details} <br>
+                        <small style="font-weight: normal;">الحالة: ${statusText}</small>
+                    </div>
+                `;
+            });
+        } else {
+            listDiv.innerHTML = '<p>لا توجد طلبات نشطة حالياً</p>';
+        }
+    }
+
+    // تفعيل التحديث اللحظي (Realtime) لتحديث الألوان تلقائياً بمجرد أن يضغط الكاشير
+    _supabase
+      .channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+          loadMyOrders(); // إعادة تحميل القائمة فور حدوث أي تغيير من الكاشير
+      })
+      .subscribe();
+
+    // تحميل الطلبات عند فتح الصفحة لأول مرة
+    loadMyOrders();
+</script>
+
+</body>
+</html>
