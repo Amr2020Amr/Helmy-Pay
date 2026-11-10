@@ -3,25 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helmy Pay - لوحة الكاشير</title>
+    <title>Helmy Pay - لوحة الكاشير الذكية</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', Tahoma, sans-serif; background: #f8f9fa; padding: 20px; margin: 0; direction: rtl; color: #333; }
         .header { background: linear-gradient(135deg, #2c3e50, #1a252f); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .header h1 { margin: 0; font-size: 24px; color: #f39c12; }
+        
+        /* شريط البحث الذكي */
+        .search-box { margin-bottom: 20px; text-align: center; }
+        .search-box input { width: 100%; max-width: 400px; padding: 12px 20px; border: 2px solid #ddd; border-radius: 30px; font-size: 16px; font-family: 'Cairo', sans-serif; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: #f39c12; }
+
         .orders-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
-        .order-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-right: 6px solid #f39c12; transition: transform 0.2s; }
-        .order-card:hover { transform: translateY(-3px); }
-        .order-card.done { border-right-color: #27ae60; background: #fcfcfc; }
-        .order-info { margin-bottom: 12px; font-size: 15px; line-height: 1.6; }
+        
+        .order-card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-right: 6px solid #f39c12; overflow: hidden; transition: transform 0.2s; margin-bottom: 10px; }
+        .order-card.done { border-right-color: #27ae60; }
+
+        /* رأس الطاولة القابل للنقر للطي والفتح */
+        .order-header { padding: 15px 20px; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; }
+        .order-header:hover { background: #fdfefe; }
+
+        /* محتوى القائمة المنسدلة */
+        .order-body { padding: 0 20px 20px 20px; border-top: 1px solid #eee; display: none; }
+        .order-body.active { display: block; }
+
+        .order-info { margin: 12px 0; font-size: 15px; line-height: 1.6; }
         .order-info b { color: #2c3e50; }
-        button { width: 100%; padding: 10px; margin: 6px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s; }
+
+        button { width: 100%; padding: 10px; margin: 6px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s; font-family: 'Cairo', sans-serif; }
         .btn-register { background: #27ae60; color: white; }
         .btn-register:hover { background: #219653; }
         .btn-pay { background: #f39c12; color: white; }
         .btn-pay:hover { background: #d68910; }
-        select, input[type="file"] { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: 'Cairo', sans-serif; background: #fff; }
+        
+        select, input[type="file"], input[type="number"] { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: 'Cairo', sans-serif; background: #fff; }
         .action-box { margin-top: 15px; padding-top: 12px; border-top: 2px dashed #eee; }
         .empty-msg { text-align: center; color: #7f8c8d; font-size: 18px; grid-column: 1 / -1; margin-top: 40px; }
     </style>
@@ -30,7 +47,12 @@
 
     <div class="header">
         <h1>☕ Helmy Pay - نظام إدارة المطعم والكافيه</h1>
-        <p>لوحة التحكم والمحاسبة (الكاشير)</p>
+        <p>لوحة التحكم والمحاسبة (الكاشير الذكي)</p>
+    </div>
+
+    <!-- شريط البحث الذكي برقم الطاولة -->
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="🔍 ابحث برقم الطاولة سريعا (مثال: طاولة 5)..." onkeyup="filterOrders()">
     </div>
 
     <div id="cashierOrdersList" class="orders-container">
@@ -42,55 +64,90 @@
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let allOrders = []; // حفظ الطلبات للبحث الفوري
+
     async function loadCashierOrders() {
-        // جلب الطلبات غير المكتملة فقط لكي تختفي الطاولة فور المحاسبة
         const { data, error } = await _supabase
             .from('Orders')
             .select('*')
             .neq('status', 'completed')
             .order('id', { ascending: false });
 
+        if(data) {
+            allOrders = data;
+            renderOrders(allOrders);
+        } else {
+            document.getElementById('cashierOrdersList').innerHTML = '<p class="empty-msg">لا توجد طلبات نشطة حالياً ✨</p>';
+        }
+    }
+
+    function renderOrders(orders) {
         const listDiv = document.getElementById('cashierOrdersList');
         listDiv.innerHTML = '';
 
-        if(data && data.length > 0) {
-            data.forEach(order => {
+        if(orders.length > 0) {
+            orders.forEach(order => {
                 let isRegistered = order.status === 'registered';
                 let cardClass = isRegistered ? 'order-card done' : 'order-card';
 
                 listDiv.innerHTML += `
-                    <div class="${cardClass}" id="order-${order.id}">
-                        <div class="order-info">
-                            <b>🍽️ رقم الطاولة:</b> ${order.table_number} <br>
-                            <b>🤵 الكابتن المسؤول:</b> ${order.waiter_name || 'غير محدد'} <br>
-                            <b>📝 تفاصيل الطلب:</b> ${order.items_details} <br>
-                            <b>📌 الحالة:</b> <span style="color: ${isRegistered ? '#27ae60' : '#e67e22'}; font-weight: bold;">
-                                ${isRegistered ? 'تم التسجيل في النظام (أخضر)' : 'قيد الانتظار (برتقالي)'}
-                            </span>
+                    <div class="${cardClass}" id="card-${order.id}">
+                        <!-- رأس البطاقة القابل للضغط لفتح القائمة المنسدلة -->
+                        <div class="order-header" onclick="toggleDropdown(${order.id})">
+                            <span>🍽️ ${order.table_number}</span>
+                            <span style="font-size: 13px; color: #e67e22;">${isRegistered ? '✅ مسجل' : '⏳ قيد الانتظار'} ▾</span>
                         </div>
                         
-                        ${!isRegistered ? `<button class="btn-register" onclick="markAsRegistered(${order.id})">تسجيل الطلب الآن</button>` : ''}
-                        
-                        <div class="action-box">
-                            <label style="font-size: 13px; font-weight: 600; color: #555;">طريقة الدفع:</label>
-                            <select id="pay-method-${order.id}">
-                                <option value="cash">نقدي (Cash)</option>
-                                <option value="vcash">فودافون كاش (Vodafone Cash)</option>
-                                <option value="instapay">انستاباي (InstaPay)</option>
-                                <option value="fawry">فوري (Fawry)</option>
-                            </select>
+                        <!-- تفاصيل الأوردر المنسدلة -->
+                        <div class="order-body" id="body-${order.id}">
+                            <div class="order-info">
+                                <b>🤵 الكابتن المسؤول:</b> ${order.waiter_name || 'غير محدد'} <br>
+                                <b>📝 تفاصيل الطلب:</b> ${order.items_details} <br>
+                            </div>
                             
-                            <label style="font-size: 13px; font-weight: 600; color: #555;">صورة إيصال الدفع الإلكتروني:</label>
-                            <input type="file" accept="image/*" capture="environment" id="receipt-file-${order.id}">
+                            ${!isRegistered ? `<button class="btn-register" onclick="markAsRegistered(${order.id})">تسجيل الطلب في النظام</button>` : ''}
                             
-                            <button class="btn-pay" onclick="checkoutOrder(${order.id})">إتمام المحاسبة وإغلاق الطاولة</button>
+                            <div class="action-box">
+                                <label style="font-size: 13px; font-weight: 600; color: #555;">إجمالي التكلفة (جنيه):</label>
+                                <input type="number" id="total-price-${order.id}" placeholder="اكتب إجمالي الحساب هنا...">
+
+                                <label style="font-size: 13px; font-weight: 600; color: #555;">طريقة الدفع:</label>
+                                <select id="pay-method-${order.id}">
+                                    <option value="cash">نقدي (Cash)</option>
+                                    <option value="vcash">فودافون كاش (Vodafone Cash)</option>
+                                    <option value="instapay">انستاباي (InstaPay)</option>
+                                    <option value="fawry">فوري (Fawry)</option>
+                                </select>
+                                
+                                <label style="font-size: 13px; font-weight: 600; color: #555;">صورة إيصال الدفع الإلكتروني:</label>
+                                <input type="file" accept="image/*" capture="environment" id="receipt-file-${order.id}">
+                                
+                                <button class="btn-pay" onclick="checkoutOrder(${order.id})">حساب الإجمالي وإتمام الحساب 💳</button>
+                            </div>
                         </div>
                     </div>
                 `;
             });
         } else {
-            listDiv.innerHTML = '<p class="empty-msg">لا توجد طلبات نشطة حالياً ✨</p>';
+            listDiv.innerHTML = '<p class="empty-msg">لا توجد طلبات تطابق بحثك ✨</p>';
         }
+    }
+
+    // دالة فتح وإغلاق القائمة المنسدلة للطاولة
+    function toggleDropdown(orderId) {
+        const body = document.getElementById(`body-${orderId}`);
+        body.classList.toggle('active');
+    }
+
+    // دالة البحث الذكي السريع برقم الطاولة
+    function filterOrders() {
+        const query = document.getElementById('searchInput').value.trim().toLowerCase();
+        if(!query) {
+            renderOrders(allOrders);
+            return;
+        }
+        const filtered = allOrders.filter(o => o.table_number.toLowerCase().includes(query));
+        renderOrders(filtered);
     }
 
     async function markAsRegistered(orderId) {
@@ -107,8 +164,14 @@
     }
 
     async function checkoutOrder(orderId) {
+        const totalPrice = document.getElementById(`total-price-${orderId}`).value;
         const method = document.getElementById(`pay-method-${orderId}`).value;
         const fileInput = document.getElementById(`receipt-file-${orderId}`);
+
+        if(!totalPrice) {
+            alert("الرجاء إدخال إجمالي التكلفة قبل إتمام الحساب!");
+            return;
+        }
         
         let receiptPath = "";
 
@@ -127,7 +190,6 @@
             }
         }
 
-        // تحديث حالة الطلب إلى completed لكي يختفي تلقائياً من شاشة الكاشير
         const { error } = await _supabase
             .from('Orders')
             .update({ 
@@ -140,7 +202,7 @@
         if(error) {
             alert("خطأ في عملية المحاسبة");
         } else {
-            alert("تمت المحاسبة بنجاح وإغلاق الطلب!");
+            alert("تم إتمام الحساب وإغلاق الطاولة بنجاح! 💸");
             loadCashierOrders();
         }
     }
