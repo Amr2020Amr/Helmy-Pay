@@ -16,15 +16,15 @@
         button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
         button:hover { background: #219653; }
         .order-item { padding: 15px; margin: 10px 0; border-radius: 10px; color: white; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .pending { background: #e67e22; } /* برتقالي: قيد الانتظار */
-        .registered { background: #27ae60; } /* أخضر: تم التسجيل */
+        .pending { background: #e67e22; } 
+        .registered { background: #27ae60; } 
     </style>
 </head>
 <body>
 
     <div class="header">
         <h1>☕ Helmy Pay</h1>
-        <p>شاشة إرسال ومتابعة طلبات الصالة</p>
+        <p>شاشة إرسال ومتابعة طلبات الصالة (<span id="waiterDisplayName"></span>)</p>
     </div>
 
     <div class="card">
@@ -49,7 +49,9 @@
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const waiterName = "كابتن الصالة"; 
+    // جلب اسم الكابتن المسجل دخوله فعلياً، وإذا لم يوجد يتم وضع اسم افتراضي
+    const currentWaiter = localStorage.getItem('currentUser') || 'كابتن الصالة';
+    document.getElementById('waiterDisplayName').innerText = currentWaiter;
 
     async function sendOrder() {
         const table = document.getElementById('tableNum').value.trim();
@@ -62,7 +64,7 @@
 
         const { error } = await _supabase.from('Orders').insert([
             {
-                waiter_name: waiterName,
+                waiter_name: currentWaiter, // إرسال اسم الكابتن الحقيقي لقاعدة البيانات
                 table_number: table,
                 items_details: details,
                 status: 'pending'
@@ -80,7 +82,6 @@
     }
 
     async function loadMyOrders() {
-        // جلب الطلبات النشطة فقط وتجاهل المكتملة
         const { data, error } = await _supabase
             .from('Orders')
             .select('*')
@@ -98,6 +99,7 @@
                 listDiv.innerHTML += `
                     <div class="order-item ${statusClass}">
                         🍽️ رقم الطاولة: ${order.table_number} <br>
+                        👤 الكابتن: ${order.waiter_name || 'غير محدد'} <br>
                         📝 الطلب: ${order.items_details} <br>
                         <small style="font-weight: normal; font-size: 13px;">الحالة: ${statusText}</small>
                     </div>
