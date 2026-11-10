@@ -25,14 +25,14 @@
     </div>
 
 <script>
-    // ربط النظام بقاعدة بيانات Supabase
     const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function loadCashierOrders() {
+        // استخدام Orders بالحرف الكبير لتطابق جدولك
         const { data, error } = await _supabase
-            .from('orders')
+            .from('Orders')
             .select('*')
             .order('id', { ascending: false });
 
@@ -75,10 +75,9 @@
         }
     }
 
-    // دالة لتغيير حالة الطلب إلى مسجل (لتتحول للون الأخضر عند الكابتن)
     async function markAsRegistered(orderId) {
         const { error } = await _supabase
-            .from('orders')
+            .from('Orders')
             .update({ status: 'registered' })
             .eq('id', orderId);
 
@@ -89,19 +88,16 @@
         }
     }
 
-    // دالة إتمام الدفع ورفع صورة الإيصال عبر كاميرا الهاتف
     async function checkoutOrder(orderId) {
         const method = document.getElementById(`pay-method-${orderId}`).value;
         const fileInput = document.getElementById(`receipt-file-${orderId}`);
         
         let receiptPath = "";
 
-        // إذا تم اختيار دفع إلكتروني ورفع صورة عبر الكاميرا
         if(fileInput.files.length > 0 && method !== 'cash') {
             const file = fileInput.files[0];
             const fileName = `receipt_${orderId}_${Date.now()}.jpg`;
             
-            // رفع الصورة إلى سحابة التخزين في Supabase
             const { data: uploadData, error: uploadError } = await _supabase.storage
                 .from('receipts')
                 .upload(fileName, file);
@@ -113,9 +109,8 @@
             }
         }
 
-        // تحديث الطلب كمكتمل ومدفوع
         const { error } = await _supabase
-            .from('orders')
+            .from('Orders')
             .update({ 
                 status: 'completed', 
                 payment_method: method,
@@ -131,10 +126,9 @@
         }
     }
 
-    // تفعيل التحديث اللحظي الفوري للطلبات الواردة من الصالة
     _supabase
       .channel('public:orders:cashier')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadCashierOrders();
       })
       .subscribe();
