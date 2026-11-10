@@ -21,11 +21,9 @@
         .order-card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-right: 6px solid #f39c12; overflow: hidden; transition: transform 0.2s; margin-bottom: 10px; }
         .order-card.done { border-right-color: #27ae60; }
 
-        /* رأس الطاولة القابل للنقر للطي والفتح */
         .order-header { padding: 15px 20px; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; }
         .order-header:hover { background: #fdfefe; }
 
-        /* محتوى القائمة المنسدلة */
         .order-body { padding: 0 20px 20px 20px; border-top: 1px solid #eee; display: none; }
         .order-body.active { display: block; }
 
@@ -41,16 +39,42 @@
         select, input[type="file"], input[type="number"] { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: 'Cairo', sans-serif; background: #fff; }
         .action-box { margin-top: 15px; padding-top: 12px; border-top: 2px dashed #eee; }
         .empty-msg { text-align: center; color: #7f8c8d; font-size: 18px; grid-column: 1 / -1; margin-top: 40px; }
+
+        /* تصميم الإشعار المنبثق (Toast) */
+        #notification-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #e74c3c;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-weight: 700;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            transition: transform 0.4s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #notification-banner.show {
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
+
+    <!-- لافتة التنبيه المنبثقة للأوردر الجديد -->
+    <div id="notification-banner">
+        <span>🔔 تنبيه! طلب جديد تم إرساله من الصالة</span>
+    </div>
 
     <div class="header">
         <h1>☕ Helmy Pay - نظام إدارة المطعم والكافيه</h1>
         <p>لوحة التحكم والمحاسبة (الكاشير الذكي)</p>
     </div>
 
-    <!-- شريط البحث الذكي برقم الطاولة -->
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="🔍 ابحث برقم الطاولة سريعا (مثال: طاولة 5)..." onkeyup="filterOrders()">
     </div>
@@ -64,7 +88,40 @@
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let allOrders = []; // حفظ الطلبات للبحث الفوري
+    let allOrders = [];
+    let previousCount = null;
+
+    // دالة إصدار صوت تنبيه (Beep) باستخدام متصفح الويب دون الحاجة لملفات خارجية
+    function playAlertSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // تردد الصوت
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.4); // مدة الصوت 0.4 ثانية
+        } catch (e) {
+            console.log("Audio not supported or blocked");
+        }
+    }
+
+    // إظهار الإشعار المرئي المتحرك
+    function showNotificationBanner() {
+        const banner = document.getElementById('notification-banner');
+        banner.classList.add('show');
+        playAlertSound(); // تشغيل الصوت
+
+        setTimeout(() => {
+            banner.classList.remove('show');
+        }, 4000); // تختفي اللافتة بعد 4 ثوانٍ
+    }
 
     async function loadCashierOrders() {
         const { data, error } = await _supabase
@@ -74,6 +131,12 @@
             .order('id', { ascending: false });
 
         if(data) {
+            // التحقق مما إذا كان هناك طلب جديد تم إضافته
+            if (previousCount !== null && data.length > previousCount) {
+                showNotificationBanner();
+            }
+            previousCount = data.length;
+
             allOrders = data;
             renderOrders(allOrders);
         } else {
@@ -92,13 +155,13 @@
 
                 listDiv.innerHTML += `
                     <div class="${cardClass}" id="card-${order.id}">
-                        <!-- رأس البطاقة القابل للضغط لفتح القائمة المنسدلة -->
                         <div class="order-header" onclick="toggleDropdown(${order.id})">
                             <span>🍽️ ${order.table_number}</span>
-                            <span style="font-size: 13px; color: #e67e22;">${isRegistered ? '✅ مسجل' : '⏳ قيد الانتظار'} ▾</span>
+                            <span style="font-size: 13px; color: ${isRegistered ? '#27ae60' : '#e67e22'};">
+                                ${isRegistered ? '✅ مسجل' : '⏳ قيد الانتظار'} ▾
+                            </span>
                         </div>
                         
-                        <!-- تفاصيل الأوردر المنسدلة -->
                         <div class="order-body" id="body-${order.id}">
                             <div class="order-info">
                                 <b>🤵 الكابتن المسؤول:</b> ${order.waiter_name || 'غير محدد'} <br>
@@ -133,13 +196,11 @@
         }
     }
 
-    // دالة فتح وإغلاق القائمة المنسدلة للطاولة
     function toggleDropdown(orderId) {
         const body = document.getElementById(`body-${orderId}`);
         body.classList.toggle('active');
     }
 
-    // دالة البحث الذكي السريع برقم الطاولة
     function filterOrders() {
         const query = document.getElementById('searchInput').value.trim().toLowerCase();
         if(!query) {
@@ -207,9 +268,13 @@
         }
     }
 
+    // التحديث اللحظي عبر Realtime من Supabase وتفعيل التنبيه
     _supabase
       .channel('public:orders:cashier')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Orders' }, payload => {
+          loadCashierOrders();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Orders' }, payload => {
           loadCashierOrders();
       })
       .subscribe();
