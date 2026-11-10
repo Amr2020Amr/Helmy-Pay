@@ -3,36 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شاشة كابتن الصالة</title>
+    <title>Helmy Pay - كابتن الصالة</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; direction: rtl; }
-        h2 { color: #333; text-align: center; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .order-item { padding: 12px; margin: 8px 0; border-radius: 8px; color: white; font-weight: bold; }
-        .pending { background: #ff9800; } 
-        .registered { background: #28a745; } 
+        body { font-family: 'Cairo', Tahoma, sans-serif; background: #f8f9fa; padding: 15px; margin: 0; direction: rtl; color: #333; }
+        .header { background: linear-gradient(135deg, #2c3e50, #1a252f); color: white; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 22px; color: #f39c12; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        label { font-weight: 600; color: #444; display: block; margin-top: 8px; }
+        input { width: 100%; padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; font-family: 'Cairo', sans-serif; }
+        button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+        button:hover { background: #219653; }
+        .order-item { padding: 15px; margin: 10px 0; border-radius: 10px; color: white; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .pending { background: #e67e22; } /* برتقالي: قيد الانتظار */
+        .registered { background: #27ae60; } /* أخضر: تم التسجيل */
     </style>
 </head>
 <body>
 
-    <h2>إرسال طلب جديد</h2>
+    <div class="header">
+        <h1>☕ Helmy Pay</h1>
+        <p>شاشة إرسال ومتابعة طلبات الصالة</p>
+    </div>
+
     <div class="card">
         <label>رقم الطاولة:</label>
         <input type="text" id="tableNum" placeholder="مثال: طاولة 5">
         
         <label>تفاصيل الأوردر (المنيو):</label>
-        <input type="text" id="orderDetails" placeholder="مثال: 2 قهوة مظبوط">
+        <input type="text" id="orderDetails" placeholder="مثال: 2 قهوة مظبوط، 1 عصير مانجو">
         
-        <button onclick="sendOrder()">إرسال الطلب</button>
+        <button onclick="sendOrder()">إرسال الطلب للكاشير</button>
     </div>
 
-    <h2>متابعة حالة طلبات الصالة</h2>
-    <div id="ordersList" class="card">
-        <p>جاري تحميل الطلبات...</p>
+    <div class="card">
+        <h3 style="margin-top:0; color: #2c3e50;">متابعة حالة الطلبات النشطة</h3>
+        <div id="ordersList">
+            <p style="color: #7f8c8d;">جاري تحميل الطلبات...</p>
+        </div>
     </div>
 
 <script>
@@ -51,7 +60,6 @@
             return;
         }
 
-        // استخدام Orders بالحرف الكبير لتطابق جدولك في قاعدة البيانات
         const { error } = await _supabase.from('Orders').insert([
             {
                 waiter_name: waiterName,
@@ -72,9 +80,11 @@
     }
 
     async function loadMyOrders() {
+        // جلب الطلبات النشطة فقط وتجاهل المكتملة
         const { data, error } = await _supabase
             .from('Orders')
             .select('*')
+            .neq('status', 'completed')
             .order('id', { ascending: false });
 
         const listDiv = document.getElementById('ordersList');
@@ -83,23 +93,23 @@
         if(data && data.length > 0) {
             data.forEach(order => {
                 let statusClass = order.status === 'registered' ? 'registered' : 'pending';
-                let statusText = order.status === 'registered' ? 'تم التسجيل بواسطة الكاشير (أخضر)' : 'قيد الانتظار - في انتظار الكاشير (برتقالي)';
+                let statusText = order.status === 'registered' ? 'تم التسجيل بواسطة الكاشير (أخضر ✅)' : 'قيد الانتظار - في انتظار الكاشير (برتقالي ⏳)';
                 
                 listDiv.innerHTML += `
                     <div class="order-item ${statusClass}">
-                        رقم الطاولة: ${order.table_number} <br>
-                        الطلب: ${order.items_details} <br>
-                        <small style="font-weight: normal;">الحالة: ${statusText}</small>
+                        🍽️ رقم الطاولة: ${order.table_number} <br>
+                        📝 الطلب: ${order.items_details} <br>
+                        <small style="font-weight: normal; font-size: 13px;">الحالة: ${statusText}</small>
                     </div>
                 `;
             });
         } else {
-            listDiv.innerHTML = '<p>لا توجد طلبات نشطة حالياً</p>';
+            listDiv.innerHTML = '<p style="color: #7f8c8d;">لا توجد طلبات نشطة حالياً</p>';
         }
     }
 
     _supabase
-      .channel('public:orders')
+      .channel('public:orders:waiter')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadMyOrders();
       })
