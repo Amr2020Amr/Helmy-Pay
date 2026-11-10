@@ -26,7 +26,6 @@
 </div>
 
 <script>
-    // ربط النظام بقاعدة بيانات Supabase الخاصة بك
     const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -36,31 +35,37 @@
         const pass = document.getElementById('password').value.trim();
         const errorMsg = document.getElementById('error-msg');
 
+        errorMsg.innerText = "جاري التحقق...";
+
         if(!user || !pass) {
             errorMsg.innerText = "الرجاء إدخال اسم المستخدم وكلمة المرور";
             return;
         }
 
-        // البحث عن المستخدم في جدول users في قاعدة البيانات
+        // جلب البيانات من جدول users ومطابقة اسم المستخدم وكلمة المرور
         const { data, error } = await _supabase
             .from('users')
             .select('*')
             .eq('username', user)
-            .eq('password', pass)
-            .single();
+            .eq('password', pass);
 
-        if (error || !data) {
-            errorMsg.innerText = "خطأ في اسم المستخدم أو كلمة المرور";
+        if (error) {
+            errorMsg.innerText = "خطأ في الاتصال بقاعدة البيانات: " + error.message;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            errorMsg.innerText = "اسم المستخدم أو كلمة المرور غير صحيحة";
         } else {
-            // التحقق من الصلاحية (role) وتوجيهه لصفحته المخصصة
-            if(data.role === 'waiter') {
+            const loggedUser = data[0];
+            
+            // التوجيه بناءً على الصلاحية المدخلة في قاعدة البيانات
+            if(loggedUser.role === 'waiter') {
                 window.location.href = 'waiter.html';
-            } else if(data.role === 'cashier') {
+            } else if(loggedUser.role === 'cashier') {
                 window.location.href = 'cashier.html';
-            } else if(data.role === 'admin') {
-                window.location.href = 'admin.html'; // سيتم إضافتها لاحقاً للأدمن
             } else {
-                window.alert("تم تسجيل الدخول، ولكن الصلاحية غير معروفة");
+                alert("تم الدخول، ولكن الدور غير معروف: " + loggedUser.role);
             }
         }
     }
