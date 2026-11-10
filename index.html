@@ -3,25 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - نظام الكافيه</title>
+    <title>Helmy Pay - تسجيل الدخول</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; direction: rtl; }
-        .login-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #218838; }
-        .error { color: red; margin-top: 10px; font-size: 14px; }
+        body { 
+            font-family: 'Cairo', Tahoma, sans-serif; 
+            background: linear-gradient(135deg, #1a252f, #2c3e50); 
+            height: 100vh; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            direction: rtl; 
+        }
+        .login-card { 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 40px 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            width: 100%; 
+            max-width: 380px; 
+            text-align: center; 
+            backdrop-filter: blur(10px);
+            border-top: 5px solid #f39c12;
+        }
+        .logo-area h1 { 
+            color: #2c3e50; 
+            margin: 0 0 5px 0; 
+            font-size: 28px; 
+            font-weight: 900; 
+        }
+        .logo-area h1 span { color: #f39c12; }
+        .logo-area p { 
+            color: #7f8c8d; 
+            margin: 0 0 25px 0; 
+            font-size: 14px; 
+            font-weight: 600;
+        }
+        .input-group { text-align: right; margin-bottom: 15px; }
+        label { font-size: 13px; font-weight: 700; color: #34495e; display: block; margin-bottom: 5px; }
+        input { 
+            width: 100%; 
+            padding: 12px 15px; 
+            border: 1px solid #dcdde1; 
+            border-radius: 10px; 
+            box-sizing: border-box; 
+            font-size: 15px; 
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        input:focus { 
+            border-color: #f39c12; 
+            background: #fff;
+            outline: none; 
+            box-shadow: 0 0 8px rgba(243, 156, 18, 0.2);
+        }
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: linear-gradient(135deg, #f39c12, #d68910); 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            font-weight: 700; 
+            cursor: pointer; 
+            margin-top: 15px; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+        }
+        .error { 
+            color: #e74c3c; 
+            margin-top: 15px; 
+            font-size: 14px; 
+            font-weight: 600; 
+        }
     </style>
 </head>
 <body>
 
 <div class="login-card">
-    <h2>تسجيل الدخول للنظام</h2>
-    <input type="text" id="username" placeholder="اسم المستخدم">
-    <input type="password" id="password" placeholder="كلمة المرور">
-    <button onclick="login()">دخول</button>
+    <div class="logo-area">
+        <h1>Helmy <span>Pay</span></h1>
+        <p>نظام إدارة المطعم والكافيه الذكي</p>
+    </div>
+    
+    <div class="input-group">
+        <label>اسم المستخدم:</label>
+        <input type="text" id="username" placeholder="أدخل اسم المستخدم">
+    </div>
+    
+    <div class="input-group">
+        <label>كلمة المرور:</label>
+        <input type="password" id="password" placeholder="أدخل كلمة المرور">
+    </div>
+
+    <button onclick="login()">تسجيل الدخول</button>
     <div id="error-msg" class="error"></div>
 </div>
 
@@ -42,7 +125,6 @@
             return;
         }
 
-        // استخدام Users بالحرف الكبير لتطابق جدولك في قاعدة البيانات
         const { data, error } = await _supabase
             .from('Users')
             .select('*')
@@ -50,7 +132,7 @@
             .eq('password', pass);
 
         if (error) {
-            errorMsg.innerText = "خطأ: " + error.message;
+            errorMsg.innerText = "خطأ في الاتصال: " + error.message;
             return;
         }
 
@@ -59,13 +141,16 @@
         } else {
             const loggedUser = data[0];
             
-            // التوجيه بناءً على الصلاحية
+            // تخزين اسم المستخدم للترحيب به في الشاشة التالية
+            localStorage.setItem('currentUser', loggedUser.username);
+            
+            // التوجيه الذكي حسب الدور
             if(loggedUser.role === 'waiter') {
                 window.location.href = 'waiter.html';
             } else if(loggedUser.role === 'cashier') {
                 window.location.href = 'cashier.html';
             } else {
-                alert("تم الدخول بنجاح، الدور: " + loggedUser.role);
+                errorMsg.innerText = "تم الدخول بنجاح، ولكن الدور غير معروف!";
             }
         }
     }
