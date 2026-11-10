@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>شاشة كابتن الصالة</title>
-    <!-- استدعاء مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; direction: rtl; }
@@ -14,8 +13,8 @@
         button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
         button:hover { background: #0056b3; }
         .order-item { padding: 12px; margin: 8px 0; border-radius: 8px; color: white; font-weight: bold; }
-        .pending { background: #ff9800; } /* برتقالي: قيد الانتظار لم يسجله الكاشير بعد */
-        .registered { background: #28a745; } /* أخضر: تم التسجيل بواسطة الكاشير */
+        .pending { background: #ff9800; } 
+        .registered { background: #28a745; } 
     </style>
 </head>
 <body>
@@ -26,26 +25,23 @@
         <input type="text" id="tableNum" placeholder="مثال: طاولة 5">
         
         <label>تفاصيل الأوردر (المنيو):</label>
-        <input type="text" id="orderDetails" placeholder="مثال: 2 قهوة مظبوط، 1 عصير مانجو">
+        <input type="text" id="orderDetails" placeholder="مثال: 2 قهوة مظبوط">
         
         <button onclick="sendOrder()">إرسال الطلب</button>
     </div>
 
-    <h2>متابعة حالة طلبات الصالة (تحديث لحظي)</h2>
+    <h2>متابعة حالة طلبات الصالة</h2>
     <div id="ordersList" class="card">
         <p>جاري تحميل الطلبات...</p>
     </div>
 
 <script>
-    // ربط النظام بقاعدة بيانات Supabase الخاصة بك مع المفاتيح المضمنة
     const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // اسم الكابتن الحالي (يمكن تخصيصه لاحقاً بناءً على صفحة تسجيل الدخول)
     const waiterName = "كابتن الصالة"; 
 
-    // دالة إرسال الطلب الجديد
     async function sendOrder() {
         const table = document.getElementById('tableNum').value.trim();
         const details = document.getElementById('orderDetails').value.trim();
@@ -55,12 +51,13 @@
             return;
         }
 
-        const { error } = await _supabase.from('orders').insert([
+        // استخدام Orders بالحرف الكبير لتطابق جدولك في قاعدة البيانات
+        const { error } = await _supabase.from('Orders').insert([
             {
                 waiter_name: waiterName,
                 table_number: table,
                 items_details: details,
-                status: 'pending' // يبدأ باللون البرتقالي (قيد الانتظار)
+                status: 'pending'
             }
         ]);
 
@@ -74,10 +71,9 @@
         }
     }
 
-    // دالة جلب وعرض الطلبات ومتابعة تغيير الألوان لحظياً
     async function loadMyOrders() {
         const { data, error } = await _supabase
-            .from('orders')
+            .from('Orders')
             .select('*')
             .order('id', { ascending: false });
 
@@ -86,7 +82,6 @@
 
         if(data && data.length > 0) {
             data.forEach(order => {
-                // التحقق من الحالة: إذا سجلها الكاشير تصبح خضراء، وإلا فتبقى برتقالية
                 let statusClass = order.status === 'registered' ? 'registered' : 'pending';
                 let statusText = order.status === 'registered' ? 'تم التسجيل بواسطة الكاشير (أخضر)' : 'قيد الانتظار - في انتظار الكاشير (برتقالي)';
                 
@@ -103,15 +98,13 @@
         }
     }
 
-    // تفعيل التحديث اللحظي (Realtime) لتحديث الألوان تلقائياً بمجرد أن يضغط الكاشير
     _supabase
       .channel('public:orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-          loadMyOrders(); // إعادة تحميل القائمة فور حدوث أي تغيير من الكاشير
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
+          loadMyOrders();
       })
       .subscribe();
 
-    // تحميل الطلبات عند فتح الصفحة لأول مرة
     loadMyOrders();
 </script>
 
