@@ -42,15 +42,15 @@
             return;
         }
 
-        // جلب البيانات من جدول users ومطابقة اسم المستخدم وكلمة المرور
+        // استخدام Users بالحرف الكبير لتطابق جدولك في قاعدة البيانات
         const { data, error } = await _supabase
-            .from('users')
+            .from('Users')
             .select('*')
             .eq('username', user)
             .eq('password', pass);
 
         if (error) {
-            errorMsg.innerText = "خطأ في الاتصال بقاعدة البيانات: " + error.message;
+            errorMsg.innerText = "خطأ: " + error.message;
             return;
         }
 
@@ -59,13 +59,13 @@
         } else {
             const loggedUser = data[0];
             
-            // التوجيه بناءً على الصلاحية المدخلة في قاعدة البيانات
+            // التوجيه بناءً على الصلاحية
             if(loggedUser.role === 'waiter') {
                 window.location.href = 'waiter.html';
             } else if(loggedUser.role === 'cashier') {
                 window.location.href = 'cashier.html';
             } else {
-                alert("تم الدخول، ولكن الدور غير معروف: " + loggedUser.role);
+                alert("تم الدخول بنجاح، الدور: " + loggedUser.role);
             }
         }
     }
