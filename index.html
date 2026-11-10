@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - نظام الكافيه</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; direction: rtl; }
+        .login-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #218838; }
+        .error { color: red; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <h2>تسجيل الدخول للنظام</h2>
+    <input type="text" id="username" placeholder="اسم المستخدم">
+    <input type="password" id="password" placeholder="كلمة المرور">
+    <button onclick="login()">دخول</button>
+    <div id="error-msg" class="error"></div>
+</div>
+
+<script>
+    // ربط النظام بقاعدة بيانات Supabase الخاصة بك
+    const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function login() {
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
+        const errorMsg = document.getElementById('error-msg');
+
+        if(!user || !pass) {
+            errorMsg.innerText = "الرجاء إدخال اسم المستخدم وكلمة المرور";
+            return;
+        }
+
+        // البحث عن المستخدم في جدول users في قاعدة البيانات
+        const { data, error } = await _supabase
+            .from('users')
+            .select('*')
+            .eq('username', user)
+            .eq('password', pass)
+            .single();
+
+        if (error || !data) {
+            errorMsg.innerText = "خطأ في اسم المستخدم أو كلمة المرور";
+        } else {
+            // التحقق من الصلاحية (role) وتوجيهه لصفحته المخصصة
+            if(data.role === 'waiter') {
+                window.location.href = 'waiter.html';
+            } else if(data.role === 'cashier') {
+                window.location.href = 'cashier.html';
+            } else if(data.role === 'admin') {
+                window.location.href = 'admin.html'; // سيتم إضافتها لاحقاً للأدمن
+            } else {
+                window.alert("تم تسجيل الدخول، ولكن الصلاحية غير معروفة");
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
