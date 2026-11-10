@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشة الكاشير</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; direction: rtl; }
+        h2 { color: #333; text-align: center; }
+        .order-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 12px; border-right: 6px solid #ff9800; }
+        .order-card.done { border-right-color: #28a745; }
+        button { padding: 8px 12px; margin: 5px 2px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; color: white; }
+        .btn-register { background: #28a745; }
+        .btn-bill { background: #17a2b8; }
+        .btn-pay { background: #ffc107; color: black; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <h2>لوحة متابعة طلبات الكاشير (تحديث لحظي)</h2>
+    <div id="cashierOrdersList">
+        <p>جاري تحميل الطلبات الواردة...</p>
+    </div>
+
+<script>
+    // ربط النظام بقاعدة بيانات Supabase
+    const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadCashierOrders() {
+        const { data, error } = await _supabase
+            .from('orders')
+            .select('*')
+            .order('id', { ascending: false });
+
+        const listDiv = document.getElementById('cashierOrdersList');
+        listDiv.innerHTML = '';
+
+        if(data && data.length > 0) {
+            data.forEach(order => {
+                let isRegistered = order.status === 'registered';
+                let cardClass = isRegistered ? 'order-card done' : 'order-card';
+
+                listDiv.innerHTML += `
+                    <div class="${cardClass}" id="order-${order.id}">
+                        <b>رقم الطاولة:</b> ${order.table_number} <br>
+                        <b>الكابتن المرسل:</b> ${order.waiter_name} <br>
+                        <b>الطلب المطلوب:</b> ${order.items_details} <br>
+                        <b>الحالة الحالية:</b> ${isRegistered ? 'تم التسجيل على الكمبيوتر (أخضر)' : 'قيد الانتظار (برتقالي)'} <br><br>
+                        
+                        ${!isRegistered ? `<button class="btn-register" onclick="markAsRegistered(${order.id})">تم التسجيل على الكمبيوتر</button>` : ''}
+                        
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ddd;">
+                            <label>اختر طريقة المحاسبة ودفع الحساب:</label>
+                            <select id="pay-method-${order.id}">
+                                <option value="cash">نقدي (Cash)</option>
+                                <option value="vcash">فودافون كاش (V.Cash)</option>
+                                <option value="instapay">انستاباي (InstaPay)</option>
+                                <option value="fawry">فوري (Fawry)</option>
+                            </select>
+                            
+                            <label>تصوير إيصال الدفع الإلكتروني (اختياري للإلكتروني):</label>
+                            <input type="file" accept="image/*" capture="environment" id="receipt-file-${order.id}">
+                            
+                            <button class="btn-pay" onclick="checkoutOrder(${order.id})">إتمام المحاسبة وإرسال الإيصال</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            listDiv.innerHTML = '<p>لا توجد طلبات واردة حالياً</p>';
+        }
+    }
+
+    // دالة لتغيير حالة الطلب إلى مسجل (لتتحول للون الأخضر عند الكابتن)
+    async function markAsRegistered(orderId) {
+        const { error } = await _supabase
+            .from('orders')
+            .update({ status: 'registered' })
+            .eq('id', orderId);
+
+        if(error) {
+            alert("خطأ أثناء التحديث: " + error.message);
+        } else {
+            loadCashierOrders();
+        }
+    }
+
+    // دالة إتمام الدفع ورفع صورة الإيصال عبر كاميرا الهاتف
+    async function checkoutOrder(orderId) {
+        const method = document.getElementById(`pay-method-${orderId}`).value;
+        const fileInput = document.getElementById(`receipt-file-${orderId}`);
+        
+        let receiptPath = "";
+
+        // إذا تم اختيار دفع إلكتروني ورفع صورة عبر الكاميرا
+        if(fileInput.files.length > 0 && method !== 'cash') {
+            const file = fileInput.files[0];
+            const fileName = `receipt_${orderId}_${Date.now()}.jpg`;
+            
+            // رفع الصورة إلى سحابة التخزين في Supabase
+            const { data: uploadData, error: uploadError } = await _supabase.storage
+                .from('receipts')
+                .upload(fileName, file);
+
+            if(uploadError) {
+                alert("تم إتمام المحاسبة، ولكن فشل رفع صورة الإيصال: " + uploadError.message);
+            } else {
+                receiptPath = fileName;
+            }
+        }
+
+        // تحديث الطلب كمكتمل ومدفوع
+        const { error } = await _supabase
+            .from('orders')
+            .update({ 
+                status: 'completed', 
+                payment_method: method,
+                receipt_image: receiptPath 
+            })
+            .eq('id', orderId);
+
+        if(error) {
+            alert("خطأ في عملية المحاسبة");
+        } else {
+            alert("تمت المحاسبة بنجاح وإرسال التفاصيل للأدمن!");
+            loadCashierOrders();
+        }
+    }
+
+    // تفعيل التحديث اللحظي الفوري للطلبات الواردة من الصالة
+    _supabase
+      .channel('public:orders:cashier')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+          loadCashierOrders();
+      })
+      .subscribe();
+
+    loadCashierOrders();
+</script>
+
+</body>
+</html>
