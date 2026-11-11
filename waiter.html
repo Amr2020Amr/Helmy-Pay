@@ -30,17 +30,24 @@
         .section-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
         
+        /* تصميم كارت الطاولة الافتراضي (قيد الانتظار) */
         .table-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-right: 5px solid #e74c3c; position: relative; transition: all 0.3s; }
-        .table-card.active-table { border-right-color: #27ae60; background: #fbfcfc; }
+        
+        /* تصميم كارت الطاولة إذا قام الكاشير بتسجيلها (لون مميز أخضر هادئ) */
+        .table-card.registered-table { 
+            background: #f4fcf7; 
+            border-right-color: #27ae60; 
+            border-top: 1px solid #d4efdf;
+        }
 
         .table-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; margin-bottom: 10px; color: #2c3e50; }
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-        .badge-busy { background: #fdebd0; color: #d35400; }
-        .badge-done { background: #e8f8f5; color: #1abc9c; }
+        .badge-pending { background: #fdebd0; color: #d35400; }
+        .badge-registered { background: #e8f8f5; color: #27ae60; border: 1px solid #a3e4d7; }
 
-        .table-content { font-size: 14px; color: #555; margin-bottom: 12px; line-height: 1.5; }
+        .table-content { font-size: 14px; color: #555; margin-bottom: 12px; line-height: 1.6; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; }
         
-        .add-extra-box { border-top: 1px dashed #eee; padding-top: 10px; margin-top: 10px; }
+        .add-extra-box { border-top: 1px dashed #ddd; padding-top: 10px; margin-top: 10px; }
         .btn-extra { background: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; width: 100%; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 5px; }
         .btn-extra:hover { background: #2980b9; }
 
@@ -51,7 +58,7 @@
 
     <div class="header">
         <h1>☕ Helmy Pay - لوحة الكابتن</h1>
-        <p>مرحباً بك، <span id="waiterNameDisplay" style="color: #f39c12; font-weight: bold;"></span> | إدارة الطاولات والطلبات المباشرة</p>
+        <p>مرحباً بك، <span id="waiterNameDisplay" style="color: #f39c12; font-weight: bold;"></span> | متابعة الطاولات وحالة التسجيل</p>
     </div>
 
     <!-- بطاقة فتح طاولة جديدة -->
@@ -94,7 +101,6 @@
     let activeOrdersData = [];
 
     async function loadActiveOrders() {
-        // جلب الطلبات غير المكتملة فقط لتحديد الطاولات المشغولة
         const { data, error } = await _supabase
             .from('Orders')
             .select('*')
@@ -117,21 +123,30 @@
 
         if(orders.length > 0) {
             orders.forEach(order => {
+                // التحقق هل تم تسجيل الأوردر من قبل الكاشير أم لا
+                const isRegistered = order.status === 'registered';
+                
+                // تحديد الفئة واللون بناءً على حالة التسجيل
+                const cardClass = isRegistered ? 'table-card registered-table' : 'table-card';
+                const statusBadge = isRegistered 
+                    ? '<span class="badge badge-registered">✅ تم التسجيل والتجهيز من الكاشير</span>' 
+                    : '<span class="badge badge-pending">⏳ قيد الانتظار عند الكاشير</span>';
+
                 listDiv.innerHTML += `
-                    <div class="table-card active-table">
+                    <div class="${cardClass}">
                         <div class="table-header">
                             <span>🍽️ طاولة رقم: ${order.table_number}</span>
-                            <span class="badge badge-busy">مشغولة ⏳</span>
+                            ${statusBadge}
                         </div>
                         <div class="table-content">
                             <b>🤵 الكابتن:</b> ${order.waiter_name || 'غير محدد'} <br>
-                            <b>📝 الطلبات الحالية:</b> ${order.items_details} <br>
-                            <span style="font-size: 11px; color: #95a5a6;">رقم الأوردر: #${order.id}</span>
+                            <b>📝 تفاصيل الأصناف المطلوبة:</b> <span style="color: #2c3e50; font-weight: 600;">${order.items_details}</span> <br>
+                            <span style="font-size: 11px; color: #7f8c8d;">رقم الأوردر: #${order.id}</span>
                         </div>
                         
                         <!-- إضافة أصناف جديدة لنفس الطاولة المفتوحة -->
                         <div class="add-extra-box">
-                            <label style="font-size: 12px; margin-bottom: 3px;">إضافة أصناف جديدة للفاتورة:</label>
+                            <label style="font-size: 12px; margin-bottom: 3px; font-weight: 600; color: #34495e;">إضافة أصناف جديدة للفاتورة:</label>
                             <input type="text" id="extra-items-${order.id}" placeholder="اكتب الأصناف الإضافية هنا..." style="padding: 8px; font-size: 13px; margin-bottom: 5px;">
                             <button class="btn-extra" onclick="addExtraToTable(${order.id}, '${order.table_number}', '${order.items_details}')">➕ إضافة على الفاتورة وإرسال للكاشير</button>
                         </div>
@@ -167,7 +182,6 @@
             return;
         }
 
-        // التحقق هل الطاولة موجودة بالفعل ولديها أوردر غير مكتمل
         const existingTable = activeOrdersData.find(o => o.table_number.toLowerCase() === tableNum.toLowerCase());
         if(existingTable) {
             alert(`⚠️ تنبيه: الطاولة رقم (${tableNum}) مشغولة بالفعل ولم يتم سداد حسابها بعد! يمكنك الضغط على "إضافة على الفاتورة" في كارت الطاولة أدناه.`);
@@ -191,7 +205,7 @@
         }
     }
 
-    // إضافة أصناف جديدة على نفس الطاولة وتحديث تفاصيلها وإشعار الكاشير
+    // إضافة أصناف جديدة على نفس الطاولة وتحديث تفاصيلها
     async function addExtraToTable(orderId, tableNum, oldItems) {
         const extraInput = document.getElementById(`extra-items-${orderId}`);
         const extraText = extraInput.value.trim();
@@ -201,12 +215,11 @@
             return;
         }
 
-        // دمج الأصناف القديمة مع الجديدة وتوضيح أنها إضافة
         const updatedItems = `${oldItems} + [إضافة جديدة: ${extraText}]`;
 
         const { error } = await _supabase.from('Orders').update({
             items_details: updatedItems,
-            status: 'pending' // إعادة تعيين الحالة لكي تظهر تنبيه جديد للكاشير
+            status: 'pending' 
         }).eq('id', orderId);
 
         if(error) {
@@ -219,7 +232,7 @@
 
     // التحديث اللحظي الفوري لتغييرات الطاولات
     _supabase
-      .channel('public:orders:waiter')
+      .channel('public:orders:waiter:realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadActiveOrders();
       })
