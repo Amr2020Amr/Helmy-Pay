@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- أيقونة الموقع العامة (Favicon) -->
+    <!-- أيقونة الموقع العامة -->
     <link rel="icon" href="Picsart_26-11-11_01-53-32-092.png" type="image/png">
-    <!-- أيقونات مخصصة لهواتف الأندرويد والشاشات الرئيسية -->
     <link rel="shortcut icon" href="Picsart_26-11-11_01-53-32-092.png">
     <link rel="apple-touch-icon" href="Picsart_26-11-11_01-53-32-092.png">
-    <!-- لون شريط المتصفح العلوي ليتطابق مع هوية Helmy Pay -->
     <meta name="theme-color" content="#f39c12">
 
     <title>Helmy Pay - تسجيل الدخول</title>
@@ -36,15 +34,24 @@
             backdrop-filter: blur(10px);
             border-top: 5px solid #f39c12;
         }
-        /* تنسيق صورة اللوجو داخل الواجهة */
+        .logo-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* تجميع العناصر وتوسيتها في المنتصف تماماً */
+            justify-content: center;
+            text-align: center;
+        }
         .app-logo {
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             object-fit: cover;
             border-radius: 50%;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border: 2px solid #f39c12;
+            display: block;
+            margin-left: auto;
+            margin-right: auto; /* ضمان التوسيط التام */
         }
         .logo-area h1 { 
             color: #2c3e50; 
@@ -108,7 +115,7 @@
 
 <div class="login-card">
     <div class="logo-area">
-        <!-- إظهار الأيقونة كشعار رسمي داخل كارت تسجيل الدخول -->
+        <!-- استخدام اسم صورتك الأصلي مع ضبط التوسيط الدقيق -->
         <img src="Picsart_26-11-11_01-53-32-092.png" alt="Helmy Pay Logo" class="app-logo">
         <h1>Helmy <span>Pay</span></h1>
         <p>نظام إدارة المطعم والكافيه الذكي</p>
@@ -145,26 +152,24 @@
             return;
         }
 
-        const { data, error } = await _supabase
+        const { data: usersData, error: dbError } = await _supabase
             .from('Users')
             .select('*')
             .eq('username', user)
             .eq('password', pass);
 
-        if (error) {
-            errorMsg.innerText = "خطأ في الاتصال: " + error.message;
+        if (dbError) {
+            errorMsg.innerText = "خطأ في الاتصال: " + dbError.message;
             return;
         }
 
-        if (!data || data.length === 0) {
+        if (!usersData || usersData.length === 0) {
             errorMsg.innerText = "اسم المستخدم أو كلمة المرور غير صحيحة";
         } else {
-            const loggedUser = data[0];
+            const loggedUser = usersData[0];
             
-            // تخزين اسم المستخدم للترحيب به في الشاشة التالية
             localStorage.setItem('currentUser', loggedUser.username);
             
-            // التوجيه الذكي حسب الدور (كابتن، كاشير، أو أدمن)
             if(loggedUser.role === 'waiter') {
                 window.location.href = 'waiter.html';
             } else if(loggedUser.role === 'cashier') {
