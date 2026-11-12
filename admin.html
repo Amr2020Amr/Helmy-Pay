@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helmy Bay - لوحة تحكم الأدمن ومراجعة المعاملات</title>
+    <title>Helmy Bay - لوحة تحكم الأدمن والتقارير المالية</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
@@ -15,19 +15,19 @@
         .header h1 span { color: white; }
         .header p { margin: 5px 0 0 0; color: #bdc3c7; font-size: 13px; }
         
-        /* شريط الأدوات والفلترة للتوافق مع جميع الأجهزة */
+        /* شريط الأدوات والفلترة */
         .toolbar { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; md-width: auto; }
+        .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         input[type="date"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Cairo', sans-serif; font-size: 14px; outline: none; background: #fafafa; }
         
         button { padding: 10px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s; font-family: 'Cairo', sans-serif; }
-        .btn-pdf { background: #e74c3c; color: white; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3); width: 100%; }
+        .btn-pdf { background: #e74c3c; color: white; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3); }
         .btn-filter { background: #3498db; color: white; }
         .btn-filter:hover { background: #2980b9; }
+        .btn-danger { background: #c0392b; color: white; box-shadow: 0 4px 10px rgba(192, 57, 43, 0.3); }
+        .btn-danger:hover { background: #962d22; }
 
         @media(min-width: 768px) {
-            .btn-pdf { width: auto; }
-            .filter-group { width: auto; }
             body { padding: 25px; }
             .header h1 { font-size: 28px; }
         }
@@ -38,7 +38,7 @@
         .stat-card h3 { margin: 0 0 8px 0; font-size: 14px; color: #7f8c8d; }
         .stat-card .number { font-size: 20px; font-weight: 900; color: #2c3e50; }
 
-        /* جدول المعاملات والعمليات */
+        /* جدول المعاملات */
         .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto; padding: 15px; }
         table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; min-width: 800px; }
         th, td { padding: 12px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
@@ -53,21 +53,30 @@
         .btn-action { background: #2980b9; color: white; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-block; }
         .btn-action:hover { background: #1f618d; }
 
-        /* نافذة معاينة الإيصال أو تفاصيل الطلب المنفردة */
+        /* نافذة منبثقة لمعاينة الفاتورة المنفردة */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
-        .modal-content { background: white; width: 100%; max-width: 450px; border-radius: 14px; padding: 20px; position: relative; max-height: 90vh; overflow-y: auto; text-align: right; }
-        .modal-content img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; }
+        .modal-content { background: white; width: 100%; max-width: 480px; border-radius: 14px; padding: 25px; position: relative; max-height: 90vh; overflow-y: auto; text-align: right; }
+        .modal-content img { width: 100%; max-height: 250px; object-label: contain; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; background: #fafafa; }
         #modal .close-btn { position: absolute; top: 15px; left: 15px; color: #e74c3c; font-size: 26px; font-weight: bold; cursor: pointer; background: #fdebd0; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         
         .empty-msg { text-align: center; color: #7f8c8d; padding: 30px; font-size: 15px; }
 
-        /* تنسيق خاص عند الطباعة والتصدير لـ PDF */
+        /* تنسيق خاص جداً للطباعة: طباعة تقرير كامل أو طباعة فاتورة منفردة مع الإيصال بنظافة تامة */
         @media print {
-            .toolbar, .stats-grid, button, .btn-action, #modal { display: none !important; }
+            body * { visibility: hidden; }
             body { background: white; padding: 0; }
-            .table-container { box-shadow: none; padding: 0; }
-            table { min-width: 100%; font-size: 12px; }
-            th { background: #eee !important; -webkit-print-color-adjust: exact; }
+            
+            /* إذا تم طباعة تقرير الجدول العام */
+            .table-container, .table-container * { visibility: visible; }
+            .table-container { position: absolute; top: 0; right: 0; width: 100%; box-shadow: none; padding: 0; }
+            
+            /* إذا تم فتح وطباعة الفاتورة المفردة من النافذة المنبثقة */
+            #modal.printing-single, #modal.printing-single * { visibility: visible; }
+            #modal.printing-single { position: absolute; top: 0; right: 0; width: 100%; height: 100%; background: white; display: flex !important; align-items: flex-start; justify-content: center; padding: 0; }
+            #modal.printing-single .modal-content { box-shadow: none; border: none; max-width: 100%; width: 100%; padding: 10px; }
+            #modal.printing-single .close-btn, #modal.printing-single button { display: none !important; }
+            
+            .toolbar, .stats-grid, button, .btn-action { display: none !important; }
         }
     </style>
 </head>
@@ -75,7 +84,7 @@
 
     <div class="header">
         <h1>Helmy <span>Bay</span> - لوحة تحكم الأدمن والتقارير المالية</h1>
-        <p>متابعة المعاملات، مراجعة الإيصالات، وتصدير التقارير المتكاملة</p>
+        <p>متابعة المعاملات، مراجعة الإيصالات، وإدارة السجلات</p>
     </div>
 
     <!-- إحصائيات سريعة -->
@@ -94,7 +103,7 @@
         </div>
     </div>
 
-    <!-- شريط الأدوات والفلترة بالتاريخ وتصدير PDF -->
+    <!-- شريط الأدوات والفلترة والأزرار -->
     <div class="toolbar">
         <div class="filter-group">
             <label style="font-weight: 600; font-size: 13px;">تصفية بالتاريخ:</label>
@@ -102,12 +111,13 @@
             <button class="btn-filter" onclick="loadAdminData()">فلترة المعاملات</button>
             <button style="background: #95a5a6; color: white;" onclick="resetFilter()">إعادة تعيين</button>
         </div>
-        <div>
-            <button class="btn-pdf" onclick="exportToPDF()">📄 تصدير تقرير المعاملات PDF</button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-pdf" onclick="exportToPDF()">📄 تصدير تقرير PDF</button>
+            <button class="btn-danger" onclick="deleteAllDataSecure()">🗑️ حذف جميع البيانات</button>
         </div>
     </div>
 
-    <!-- جدول عرض المعاملات والطلبات وتفاصيل الأوردر -->
+    <!-- جدول عرض المعاملات -->
     <div class="table-container">
         <table>
             <thead>
@@ -119,7 +129,7 @@
                     <th>الحالة</th>
                     <th>الدفع</th>
                     <th>المبلغ</th>
-                    <th>إجراءات الفاتورة والإيصال</th>
+                    <th>الإجراءات</th>
                     <th>التوقيت</th>
                 </tr>
             </thead>
@@ -129,12 +139,12 @@
         </table>
     </div>
 
-    <!-- نافذة منبثقة لمعاينة تفاصيل الطلب الفردي وإيصال الدفع مع خيار الطباعة المفردة -->
+    <!-- نافذة منبثقة لمعاينة وطباعة الفاتورة المفردة مع الإيصال -->
     <div id="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <div id="modalBody">
-                <!-- سيتم تعبئته ديناميكياً -->
+                <!-- محتوى الفاتورة المفردة -->
             </div>
         </div>
     </div>
@@ -183,8 +193,6 @@
                 else if(order.status === 'completed') statusBadge = '<span class="badge badge-completed">مكتمل ومدفوع</span>';
 
                 let timeFormatted = order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد';
-
-                // تمرير بيانات الأوردر كـ JSON للنافذة المنبثقة
                 let orderStr = encodeURIComponent(JSON.stringify(order));
 
                 tbody.innerHTML += `
@@ -245,40 +253,71 @@
                 <a href="${publicURL.publicUrl}" target="_blank">
                     <img src="${publicURL.publicUrl}" alt="إيصال الدفع">
                 </a>
-                <p style="font-size: 11px; color: #7f8c8d; text-align: center; margin-top: 5px;">(اضغط على الصورة لتكبيرها)</p>
             `;
         }
 
         modalBody.innerHTML = `
-            <h2 style="color: #f39c12; margin-top: 0; text-align: center; font-size: 20px;">Helmy Bay - تفاصيل الفاتورة #${order.id}</h2>
+            <h2 style="color: #f39c12; margin-top: 0; text-align: center; font-size: 20px;">Helmy Bay - فاتورة الطلب #${order.id}</h2>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             <p><b>🍽️ رقم الطاولة:</b> ${order.table_number}</p>
             <p><b>🤵 الكابتن المسؤول:</b> ${order.waiter_name || 'غير محدد'}</p>
-            <p><b>📝 تفاصيل الأصناف والطلب:</b> <br><span style="background: #f8f9fa; padding: 10px; display: block; border-radius: 8px; margin-top: 5px; color: #2c3e50; font-weight: 600;">${order.items_details}</span></p>
+            <p><b>📝 تفاصيل الأصناف:</b> <br><span style="background: #f8f9fa; padding: 10px; display: block; border-radius: 8px; margin-top: 5px; color: #2c3e50; font-weight: 600;">${order.items_details}</span></p>
             <p><b>💳 طريقة الدفع:</b> ${order.payment_method ? order.payment_method.toUpperCase() : 'نقدي'}</p>
             <p><b>💰 إجمالي المبلغ:</b> <span style="color: #27ae60; font-size: 16px; font-weight: 900;">${order.total_price ? order.total_price + ' ج.م' : 'غير محدد'}</span></p>
             <p><b>🕒 التوقيت:</b> ${order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد'}</p>
             <div style="margin-top: 15px; text-align: center;">
                 ${receiptHTML}
             </div>
-            <button onclick="window.print()" style="width: 100%; margin-top: 20px; background: #27ae60; color: white; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: none; cursor: pointer;">🖨️ طباعة فاتورة هذا الطلب بمفرده</button>
+            <button onclick="printSingleOrder()" style="width: 100%; margin-top: 20px; background: #27ae60; color: white; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: none; cursor: pointer;">🖨️ طباعة هذه الفاتورة مع الإيصال</button>
         `;
 
         modal.style.display = 'flex';
     }
 
-    function closeModal() {
-        document.getElementById('modal').style.display = 'none';
+    function printSingleOrder() {
+        const modal = document.getElementById('modal');
+        modal.classList.add('printing-single');
+        window.print();
+        modal.classList.remove('printing-single');
     }
 
-    // دالة تصدير وطباعة تقرير المعاملات بالكامل بصيغة PDF
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('modal').classList.remove('printing-single');
+    }
+
+    // دالة حذف جميع البيانات بحماية كلمة المرور Admin123
+    async function deleteAllDataSecure() {
+        const passwordInput = prompt("⚠️ تحذير خطير: أنت على وشك حذف كافة سجلات الطلبات والمعاملات من النظام نهائياً!\n\nأدخل كلمة مرور الأدمن (Admin123) للتأكيد:");
+        
+        if (passwordInput === null) return; // تم إلغاء الطلب
+
+        if (passwordInput !== "Admin123") {
+            alert("❌ كلمة المرور غير صحيحة! تم إلغاء عملية الحذف.");
+            return;
+        }
+
+        const confirmFinal = confirm("هل أنت متأكد بنسبة 100% من رغبتك في تفريغ وحذف جميع سجلات البيانات نهائياً؟");
+        if (!confirmFinal) return;
+
+        // تنفيذ عملية الحذف لجميع السجلات في جدول Orders (باستخدام شرط ID أكبر من 0 لحذف الكل)
+        const { error } = await _supabase.from('Orders').delete().neq('id', 0);
+
+        if (error) {
+            alert("حدث خطأ أثناء محاولة الحذف: " + error.message);
+        } else {
+            alert("🗑️ تم حذف وتفريغ جميع سجلات البيانات بنجاح تام!");
+            loadAdminData();
+        }
+    }
+
     function exportToPDF() {
         window.print();
     }
 
     // التحديث اللحظي الفوري
     _supabase
-      .channel('public:orders:admin:bay')
+      .channel('public:orders:admin:secure')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadAdminData();
       })
