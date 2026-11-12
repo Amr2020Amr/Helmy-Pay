@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helmy Pay - لوحة تحكم الأدمن</title>
+    <title>Helmy Pay - لوحة تحكم الأدمن ومراجعة الإيصالات</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
@@ -41,22 +41,30 @@
         .badge-registered { background: #e8f8f5; color: #1abc9c; }
         .badge-completed { background: #eafaf1; color: #27ae60; }
 
-        .receipt-link { color: #3498db; text-decoration: none; font-weight: 600; cursor: pointer; }
-        .receipt-link:hover { text-decoration: underline; }
+        .receipt-link { background: #ebf5fb; color: #2980b9; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 700; cursor: pointer; display: inline-block; border: 1px solid #aed6f1; transition: 0.2s; }
+        .receipt-link:hover { background: #d4e6f1; }
 
-        /* نافذة منبثقة لعرض صور الإيصالات */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-        #modal img { max-width: 90%; max-height: 90%; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
-        #modal .close-btn { position: absolute; top: 20px; left: 30px; color: white; font-size: 30px; font-weight: bold; cursor: pointer; }
+        /* نافذة منبثقة (Modal) لعرض وتدقيق صور الإيصالات بحجم كبير */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        #modal img { max-width: 85%; max-height: 80vh; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); border: 3px solid #f39c12; }
+        #modal .close-btn { position: absolute; top: 20px; left: 30px; color: white; font-size: 35px; font-weight: bold; cursor: pointer; background: rgba(0,0,0,0.5); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        #modal p { color: white; margin-top: 15px; font-size: 16px; font-weight: 600; }
         
         .empty-msg { text-align: center; color: #7f8c8d; padding: 30px; font-size: 16px; }
+
+        /* تنسيق خاص عند الطباعة لـ PDF */
+        @media print {
+            .toolbar, .stats-grid, button, .receipt-link { display: none !important; }
+            body { background: white; padding: 0; }
+            .table-container { box-shadow: none; padding: 0; }
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>☕ Helmy Pay - لوحة تحكم الأدمن</h1>
-        <p>متابعة المعاملات المالية، تقارير العمليات، والرقابة المباشرة</p>
+        <h1>☕ Helmy Pay - لوحة تحكم الأدمن ومراجعة الإيصالات</h1>
+        <p>مراقبة المعاملات المالية، تدقيق إيصالات الدفع الإلكتروني، وتصدير التقارير</p>
     </div>
 
     <!-- إحصائيات سريعة -->
@@ -88,7 +96,7 @@
         </div>
     </div>
 
-    <!-- جدول عرض المعاملات والطلبات -->
+    <!-- جدول عرض المعاملات والطلبات وإيصالات الدفع -->
     <div class="table-container">
         <table>
             <thead>
@@ -100,7 +108,7 @@
                     <th>الحالة</th>
                     <th>طريقة الدفع</th>
                     <th>المبلغ (جنيه)</th>
-                    <th>الإيصال</th>
+                    <th>إثبات الدفع (الإيصال)</th>
                     <th>التوقيت</th>
                 </tr>
             </thead>
@@ -110,10 +118,11 @@
         </table>
     </div>
 
-    <!-- نافذة عرض صورة الإيصال -->
+    <!-- نافذة منبثقة لمعاينة وتدقيق صورة الإيصال بدقة -->
     <div id="modal" onclick="closeModal()">
         <span class="close-btn">&times;</span>
-        <img id="modalImage" src="" alt="صورة الإيصال">
+        <img id="modalImage" src="" alt="صورة إيصال الدفع">
+        <p>🔍 معاينة إيصال الدفع (اضغط في أي مكان للإغلاق)</p>
     </div>
 
 <script>
@@ -137,7 +146,6 @@
 
         currentOrdersData = data || [];
         
-        // تصفية محلية حسب التاريخ إذا تم تحديده
         let filtered = currentOrdersData;
         if(selectedDate) {
             filtered = currentOrdersData.filter(order => {
@@ -161,25 +169,25 @@
                 else if(order.status === 'registered') statusBadge = '<span class="badge badge-registered">تم التسجيل</span>';
                 else if(order.status === 'completed') statusBadge = '<span class="badge badge-completed">مكتمل ومدفوع</span>';
 
-                let receiptLink = 'لا يوجد';
+                let receiptColumn = '<span style="color: #95a5a6; font-size: 13px;">دفع نقدي (Cash)</span>';
                 if(order.receipt_image) {
-                    // جلب الرابط العام للصورة من Supabase Storage
+                    // جلب الرابط العام للصورة المخزنة في Supabase Storage
                     const { data: publicURL } = _supabase.storage.from('receipts').getPublicUrl(order.receipt_image);
-                    receiptLink = `<span class="receipt-link" onclick="openModal('${publicURL.publicUrl}')">عرض الإيصال 🖼️</span>`;
+                    receiptColumn = `<span class="receipt-link" onclick="openModal('${publicURL.publicUrl}')">🖼️ مراجعة الإيصال</span>`;
                 }
 
                 let timeFormatted = order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد';
 
                 tbody.innerHTML += `
                     <tr>
-                        <b><td>#${order.id}</td></b>
+                        <td><b>#${order.id}</b></td>
                         <td>🍽️ ${order.table_number}</td>
                         <td>${order.waiter_name || 'غير محدد'}</td>
                         <td>${order.items_details}</td>
                         <td>${statusBadge}</td>
                         <td><b>${order.payment_method ? order.payment_method.toUpperCase() : '-'}</b></td>
                         <td><b>${order.total_price ? order.total_price + ' ج.م' : '-'}</b></td>
-                        <td>${receiptLink}</td>
+                        <td>${receiptColumn}</td>
                         <td style="font-size: 12px; color: #7f8c8d;">${timeFormatted}</td>
                     </tr>
                 `;
@@ -226,12 +234,12 @@
 
     // دالة طباعة وتصدير التقرير بصيغة PDF
     function exportToPDF() {
-        window.print(); // تفتح نافذة الطباعة في المتصفح والتي تتيح الحفظ بصيغة Save as PDF مباشرة
+        window.print();
     }
 
-    // التحديث اللحظي الفوري لجميع العمليات
+    // التحديث اللحظي الفوري لجميع العمليات والإيصالات الواردة
     _supabase
-      .channel('public:orders:admin')
+      .channel('public:orders:admin:receipts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadAdminData();
       })
