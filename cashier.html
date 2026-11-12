@@ -21,13 +21,12 @@
         .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         
         .order-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-right: 5px solid #f39c12; position: relative; transition: all 0.3s; }
-        .order-card.completed { border-right-color: #27ae60; background: #f9lfb9; }
+        .order-card.registered { border-right-color: #1abc9c; background: #f4fcf7; }
 
         .order-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; margin-bottom: 10px; color: #2c3e50; }
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .badge-pending { background: #fdebd0; color: #d35400; }
         .badge-registered { background: #e8f8f5; color: #1abc9c; }
-        .badge-completed { background: #eafaf1; color: #27ae60; }
 
         .order-content { font-size: 14px; color: #555; margin-bottom: 15px; line-height: 1.6; background: #f8f9fa; padding: 12px; border-radius: 8px; }
 
@@ -37,6 +36,9 @@
         label { font-size: 12px; font-weight: 700; color: #34495e; display: block; margin-bottom: 3px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Cairo', sans-serif; font-size: 13px; background: #fff; outline: none; }
         input:focus, select:focus { border-color: #f39c12; box-shadow: 0 0 5px rgba(243, 156, 18, 0.2); }
+
+        .btn-register { background: #16a085; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-bottom: 8px; }
+        .btn-register:hover { background: #138d75; }
 
         .btn-pay { background: linear-gradient(135deg, #27ae60, #219653); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3); margin-top: 5px; }
         .btn-pay:hover { transform: translateY(-2px); }
@@ -79,7 +81,7 @@
         const { data, error } = await _supabase
             .from('Orders')
             .select('*')
-            .neq('status', 'completed') // عرض الطلبات غير المسددة أو قيد المتابعة
+            .neq('status', 'completed')
             .order('id', { ascending: false });
 
         if(error) {
@@ -98,13 +100,15 @@
 
         if(orders.length > 0) {
             orders.forEach(order => {
-                let statusBadge = '<span class="badge badge-pending">طلب جديد ⏳</span>';
-                if(order.status === 'registered') {
-                    statusBadge = '<span class="badge badge-registered">جاري التجهيز بالحساب ✅</span>';
-                }
+                const isRegistered = order.status === 'registered';
+                let statusBadge = isRegistered 
+                    ? '<span class="badge badge-registered">جاري التجهيز بالحساب ✅</span>' 
+                    : '<span class="badge badge-pending">طلب جديد ⏳</span>';
+
+                let cardClass = isRegistered ? 'order-card registered' : 'order-card';
 
                 listDiv.innerHTML += `
-                    <div class="order-card">
+                    <div class="${cardClass}">
                         <div class="order-header">
                             <span>🍽️ طاولة: ${order.table_number}</span>
                             ${statusBadge}
@@ -116,6 +120,9 @@
                         </div>
 
                         <div class="payment-box">
+                            <!-- زر تسجيل الطلب والبدء بالتجهيز (ليظهر للكابتن أن الكاشير استلم الطلب) -->
+                            ${!isRegistered ? `<button class="btn-register" onclick="registerOrder(${order.id})">📥 تسجيل الطلب والبدء بالتجهيز</button>` : ''}
+
                             <div class="form-group">
                                 <label>إجمالي المبلغ (جنيه):</label>
                                 <input type="number" id="price-${order.id}" placeholder="أدخل السعر الإجمالي..." value="${order.total_price || ''}">
@@ -131,7 +138,7 @@
                                 </select>
                             </div>
 
-                            <!-- حقل رفع صورة إيصال الدفع (يظهر تلقائياً للدفع الإلكتروني) -->
+                            <!-- حقل رفع صورة إيصال الدفع الإلكتروني -->
                             <div class="form-group" id="receipt-group-${order.id}" style="display: ${order.payment_method && order.payment_method !== 'cash' ? 'block' : 'none'};">
                                 <label>تصوير أو إرفاق إيصال الدفع:</label>
                                 <input type="file" id="receipt-file-${order.id}" accept="image/*" capture="environment">
@@ -148,8 +155,19 @@
         }
     }
 
-    // إظهار أو إخفاء حقل رفع الإيصال بناءً على وسيلة الدفع
-    functionayutt = toggleReceiptInput; // للتوافق
+    // دالة تسجيل الطلب من قبل الكاشير وإرسال إشعار للكابتن
+    async function registerOrder(orderId) {
+        const { error } = await _supabase.from('Orders').update({
+            status: 'registered'
+        }).eq('id', orderId);
+
+        if(error) {
+            alert("خطأ أثناء تسجيل الطلب: " + error.message);
+        } else {
+            loadCashierOrders();
+        }
+    }
+
     function toggleReceiptInput(orderId) {
         const method = document.getElementById(`method-${orderId}`).value;
         const receiptGroup = document.getElementById(`receipt-group-${orderId}`);
@@ -160,7 +178,7 @@
         }
     }
 
-    // معالجة وسداد الحساب مع رفع صورة الإيصال لـ Supabase Storage
+    // معالجة وسداد الحساب مع رفع صورة الإيصال لـ Supabase Storage وإغلاق الطلب
     async function processPayment(orderId) {
         const priceInput = document.getElementById(`price-${orderId}`).value.trim();
         const methodInput = document.getElementById(`method-${orderId}`).value;
@@ -173,13 +191,11 @@
 
         let receiptPath = null;
 
-        // إذا تم اختيار دفع إلكتروني وتم رفع صورة الإيصال
         if(methodInput !== 'cash' && fileInput && fileInput.files.length > 0) {
             const file = fileInput.files[0];
             const fileExt = file.name.split('.').pop();
             const fileName = `receipt_${orderId}_${Date.now()}.${fileExt}`;
 
-            // رفع الصورة إلى سلة receipts في Supabase Storage
             const { data: uploadData, error: uploadError } = await _supabase.storage
                 .from('receipts')
                 .upload(fileName, file);
@@ -191,11 +207,10 @@
             receiptPath = fileName;
         }
 
-        // تحديث حالة الأوردر إلى 'completed' (مكتمل ومدفوع لتفريغ الطاولة للكابتن)
         const { error } = await _supabase.from('Orders').update({
             total_price: parseFloat(priceInput),
             payment_method: methodInput,
-            receipt_image: receiptPath ? receiptPath : undefined, // الحفاظ على القديم إذا لم يرفع جديد
+            receipt_image: receiptPath ? receiptPath : undefined,
             status: 'completed'
         }).eq('id', orderId);
 
@@ -207,7 +222,7 @@
         }
     }
 
-    // التحديث اللحظي الفوري للطلبات الواردة
+    // التحديث اللحظي الفوري
     _supabase
       .channel('public:orders:cashier:bay')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
