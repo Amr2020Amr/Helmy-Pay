@@ -40,7 +40,7 @@
 
         /* جدول المعاملات */
         .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto; padding: 15px; }
-        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; min-width: 800px; }
+        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; min-width: 900px; }
         th, td { padding: 12px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
         th { background: #f8f9fa; color: #2c3e50; font-weight: 700; }
         tr:hover { background: #fcfcfc; }
@@ -56,21 +56,18 @@
         /* نافذة منبثقة لمعاينة الفاتورة المنفردة */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
         .modal-content { background: white; width: 100%; max-width: 480px; border-radius: 14px; padding: 25px; position: relative; max-height: 90vh; overflow-y: auto; text-align: right; }
-        .modal-content img { width: 100%; max-height: 250px; object-label: contain; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; background: #fafafa; }
+        .modal-content img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; background: #fafafa; }
         #modal .close-btn { position: absolute; top: 15px; left: 15px; color: #e74c3c; font-size: 26px; font-weight: bold; cursor: pointer; background: #fdebd0; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         
         .empty-msg { text-align: center; color: #7f8c8d; padding: 30px; font-size: 15px; }
 
-        /* تنسيق خاص جداً للطباعة: طباعة تقرير كامل أو طباعة فاتورة منفردة مع الإيصال بنظافة تامة */
+        /* تنسيق الطباعة */
         @media print {
             body * { visibility: hidden; }
             body { background: white; padding: 0; }
-            
-            /* إذا تم طباعة تقرير الجدول العام */
             .table-container, .table-container * { visibility: visible; }
             .table-container { position: absolute; top: 0; right: 0; width: 100%; box-shadow: none; padding: 0; }
             
-            /* إذا تم فتح وطباعة الفاتورة المفردة من النافذة المنبثقة */
             #modal.printing-single, #modal.printing-single * { visibility: visible; }
             #modal.printing-single { position: absolute; top: 0; right: 0; width: 100%; height: 100%; background: white; display: flex !important; align-items: flex-start; justify-content: center; padding: 0; }
             #modal.printing-single .modal-content { box-shadow: none; border: none; max-width: 100%; width: 100%; padding: 10px; }
@@ -103,7 +100,7 @@
         </div>
     </div>
 
-    <!-- شريط الأدوات والفلترة والأزرار -->
+    <!-- شريط الأدوات والفلترة -->
     <div class="toolbar">
         <div class="filter-group">
             <label style="font-weight: 600; font-size: 13px;">تصفية بالتاريخ:</label>
@@ -125,12 +122,12 @@
                     <th>رقم الطلب</th>
                     <th>الطاولة</th>
                     <th>الكابتن</th>
-                    <th>تفاصيل الأصناف والطلب</th>
+                    <th>الكاشير</th>
+                    <th>تفاصيل الأصناف</th>
                     <th>الحالة</th>
                     <th>الدفع</th>
                     <th>المبلغ</th>
                     <th>الإجراءات</th>
-                    <th>التوقيت</th>
                 </tr>
             </thead>
             <tbody id="adminTableBody">
@@ -139,12 +136,12 @@
         </table>
     </div>
 
-    <!-- نافذة منبثقة لمعاينة وطباعة الفاتورة المفردة مع الإيصال -->
+    <!-- نافذة منبثقة لمعاينة الفاتورة المفردة والتوقيتات -->
     <div id="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <div id="modalBody">
-                <!-- محتوى الفاتورة المفردة -->
+                <!-- تفاصيل الفاتورة وتوقيت التسجيل والدفع -->
             </div>
         </div>
     </div>
@@ -192,7 +189,6 @@
                 else if(order.status === 'registered') statusBadge = '<span class="badge badge-registered">تم التسجيل</span>';
                 else if(order.status === 'completed') statusBadge = '<span class="badge badge-completed">مكتمل ومدفوع</span>';
 
-                let timeFormatted = order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد';
                 let orderStr = encodeURIComponent(JSON.stringify(order));
 
                 tbody.innerHTML += `
@@ -200,14 +196,14 @@
                         <td><b>#${order.id}</b></td>
                         <td>🍽️ ${order.table_number}</td>
                         <td>${order.waiter_name || 'غير محدد'}</td>
-                        <td style="font-weight: 600; color: #2c3e50; max-width: 250px;">${order.items_details}</td>
+                        <td><span style="color: #16a085; font-weight: 700;">${order.cashier_name || 'لم يُحصل بعد'}</span></td>
+                        <td style="font-weight: 600; color: #2c3e50; max-width: 220px;">${order.items_details}</td>
                         <td>${statusBadge}</td>
                         <td><b>${order.payment_method ? order.payment_method.toUpperCase() : 'نقدي'}</b></td>
                         <td><b>${order.total_price ? order.total_price + ' ج.م' : '-'}</b></td>
                         <td>
                             <button class="btn-action" onclick='openOrderDetails("${orderStr}")'>📋 تفاصيل الفاتورة</button>
                         </td>
-                        <td style="font-size: 11px; color: #7f8c8d;">${timeFormatted}</td>
                     </tr>
                 `;
             });
@@ -256,19 +252,29 @@
             `;
         }
 
+        // تنسيق توقيت تسجيل الطلب وتوقيت الدفع
+        let orderTime = order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد';
+        let paymentTime = order.updated_at ? new Date(order.updated_at).toLocaleString('ar-EG') : (order.status === 'completed' ? 'تم الدفع' : 'لم يتم الدفع بعد');
+
         modalBody.innerHTML = `
             <h2 style="color: #f39c12; margin-top: 0; text-align: center; font-size: 20px;">Helmy Bay - فاتورة الطلب #${order.id}</h2>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             <p><b>🍽️ رقم الطاولة:</b> ${order.table_number}</p>
             <p><b>🤵 الكابتن المسؤول:</b> ${order.waiter_name || 'غير محدد'}</p>
+            <p><b>🧑‍💼 الكاشير المحصل:</b> <span style="color: #16a085; font-weight: 700;">${order.cashier_name || 'لم يُحصل بعد'}</span></p>
             <p><b>📝 تفاصيل الأصناف:</b> <br><span style="background: #f8f9fa; padding: 10px; display: block; border-radius: 8px; margin-top: 5px; color: #2c3e50; font-weight: 600;">${order.items_details}</span></p>
             <p><b>💳 طريقة الدفع:</b> ${order.payment_method ? order.payment_method.toUpperCase() : 'نقدي'}</p>
             <p><b>💰 إجمالي المبلغ:</b> <span style="color: #27ae60; font-size: 16px; font-weight: 900;">${order.total_price ? order.total_price + ' ج.م' : 'غير محدد'}</span></p>
-            <p><b>🕒 التوقيت:</b> ${order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : 'غير محدد'}</p>
+            
+            <div style="background: #eaf2f8; padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 13px;">
+                <p style="margin: 3px 0;"><b>📥 توقيت تسجيل الأوردر:</b> ${orderTime}</p>
+                <p style="margin: 3px 0;"><b>💰 توقيت دفع الفاتورة:</b> ${paymentTime}</p>
+            </div>
+
             <div style="margin-top: 15px; text-align: center;">
                 ${receiptHTML}
             </div>
-            <button onclick="printSingleOrder()" style="width: 100%; margin-top: 20px; background: #27ae60; color: white; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: none; cursor: pointer;">🖨️ طباعة هذه الفاتورة مع الإيصال</button>
+            <button onclick="printSingleOrder()" style="width: 100%; margin-top: 20px; background: #27ae60; color: white; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: none; cursor: pointer;">🖨️ طباعة هذه الفاتورة مع التوقيتات والإيصال</button>
         `;
 
         modal.style.display = 'flex';
@@ -286,23 +292,16 @@
         document.getElementById('modal').classList.remove('printing-single');
     }
 
-    // دالة حذف جميع البيانات بحماية كلمة المرور Admin123
     async function deleteAllDataSecure() {
         const passwordInput = prompt("⚠️ تحذير خطير: أنت على وشك حذف كافة سجلات الطلبات والمعاملات من النظام نهائياً!\n\nأدخل كلمة مرور الأدمن (Admin123) للتأكيد:");
-        
-        if (passwordInput === null) return; // تم إلغاء الطلب
-
+        if (passwordInput === null) return;
         if (passwordInput !== "Admin123") {
             alert("❌ كلمة المرور غير صحيحة! تم إلغاء عملية الحذف.");
             return;
         }
+        if (!confirm("هل أنت متأكد بنسبة 100% من رغبتك في تفريغ وحذف جميع سجلات البيانات نهائياً؟")) return;
 
-        const confirmFinal = confirm("هل أنت متأكد بنسبة 100% من رغبتك في تفريغ وحذف جميع سجلات البيانات نهائياً؟");
-        if (!confirmFinal) return;
-
-        // تنفيذ عملية الحذف لجميع السجلات في جدول Orders (باستخدام شرط ID أكبر من 0 لحذف الكل)
         const { error } = await _supabase.from('Orders').delete().neq('id', 0);
-
         if (error) {
             alert("حدث خطأ أثناء محاولة الحذف: " + error.message);
         } else {
@@ -315,9 +314,8 @@
         window.print();
     }
 
-    // التحديث اللحظي الفوري
     _supabase
-      .channel('public:orders:admin:secure')
+      .channel('public:orders:admin:time')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadAdminData();
       })
