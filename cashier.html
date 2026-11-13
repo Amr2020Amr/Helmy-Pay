@@ -17,7 +17,6 @@
 
         .section-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* شبكة عرض الطلبات للتوافق التام مع الشاشات المختلفة */
         .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         
         .order-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-right: 5px solid #f39c12; position: relative; transition: all 0.3s; }
@@ -30,7 +29,6 @@
 
         .order-content { font-size: 14px; color: #555; margin-bottom: 15px; line-height: 1.6; background: #f8f9fa; padding: 12px; border-radius: 8px; }
 
-        /* حقول الدفع الفوري والإيصال */
         .payment-box { border-top: 1px dashed #ddd; padding-top: 12px; margin-top: 10px; }
         .form-group { margin-bottom: 10px; }
         label { font-size: 12px; font-weight: 700; color: #34495e; display: block; margin-bottom: 3px; }
@@ -120,7 +118,6 @@
                         </div>
 
                         <div class="payment-box">
-                            <!-- زر تسجيل الطلب والبدء بالتجهيز (ليظهر للكابتن أن الكاشير استلم الطلب) -->
                             ${!isRegistered ? `<button class="btn-register" onclick="registerOrder(${order.id})">📥 تسجيل الطلب والبدء بالتجهيز</button>` : ''}
 
                             <div class="form-group">
@@ -138,7 +135,6 @@
                                 </select>
                             </div>
 
-                            <!-- حقل رفع صورة إيصال الدفع الإلكتروني -->
                             <div class="form-group" id="receipt-group-${order.id}" style="display: ${order.payment_method && order.payment_method !== 'cash' ? 'block' : 'none'};">
                                 <label>تصوير أو إرفاق إيصال الدفع:</label>
                                 <input type="file" id="receipt-file-${order.id}" accept="image/*" capture="environment">
@@ -155,7 +151,6 @@
         }
     }
 
-    // دالة تسجيل الطلب من قبل الكاشير وإرسال إشعار للكابتن
     async function registerOrder(orderId) {
         const { error } = await _supabase.from('Orders').update({
             status: 'registered'
@@ -178,7 +173,7 @@
         }
     }
 
-    // معالجة وسداد الحساب مع رفع صورة الإيصال لـ Supabase Storage وإغلاق الطلب
+    // معالجة وسداد الحساب وتسجيل اسم الكاشير وتوقيت الدفع في قاعدة البيانات
     async function processPayment(orderId) {
         const priceInput = document.getElementById(`price-${orderId}`).value.trim();
         const methodInput = document.getElementById(`method-${orderId}`).value;
@@ -207,10 +202,13 @@
             receiptPath = fileName;
         }
 
+        // إرسال البيانات شاملة اسم الكاشير الحالي وتوقيت الدفع (تلقائياً عبر توقيت النظام أو حقل updated_at)
         const { error } = await _supabase.from('Orders').update({
             total_price: parseFloat(priceInput),
             payment_method: methodInput,
             receipt_image: receiptPath ? receiptPath : undefined,
+            cashier_name: currentCashier, // تسجيل اسم الكاشير الذي قام بالتحصيل
+            updated_at: new Date().toISOString(), // توقيت دفع وإغلاق الفاتورة بدقة
             status: 'completed'
         }).eq('id', orderId);
 
@@ -222,9 +220,8 @@
         }
     }
 
-    // التحديث اللحظي الفوري
     _supabase
-      .channel('public:orders:cashier:bay')
+      .channel('public:orders:cashier:bay:time')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadCashierOrders();
       })
