@@ -72,7 +72,7 @@
             <label>الأصناف المطلوبة:</label>
             <textarea id="itemsDetails" rows="3" placeholder="اكتب تفاصيل الطلب (مثلاً: 2 قهوة مظبوط، 1 عصير مانجو)..."></textarea>
         </div>
-        <button class="btn-main" onclick="addNewTableOrder()">إرسال الطلب للكاشير 🚀</button>
+        <button class="btn-main" onclick="addNewTableOrder()">إرسال الطلب للكاشير وتليجرام 🚀</button>
     </div>
 
     <!-- شريط البحث الذكي -->
@@ -94,6 +94,27 @@
     const SUPABASE_URL = 'https://emahvndharvehqnjbore.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_RdU5SrKLyWMDs4lxqIZH-Q_hndc-Beq';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // إعدادات بوت تليجرام
+    const TELEGRAM_BOT_TOKEN = '9128854894:AAGtkCZd3-V5P0kpr4LK2f0B9fAUU1KC9uU';
+    const TELEGRAM_CHAT_ID = '1998482173';
+
+    async function sendTelegramNotification(message) {
+        try {
+            const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            });
+        } catch (err) {
+            console.error("خطأ في إرسال إشعار تليجرام:", err);
+        }
+    }
 
     const currentWaiter = localStorage.getItem('currentUser') || 'كابتن الصالة';
     document.getElementById('waiterNameDisplay').innerText = currentWaiter;
@@ -123,10 +144,7 @@
 
         if(orders.length > 0) {
             orders.forEach(order => {
-                // التحقق هل تم تسجيل الأوردر من قبل الكاشير أم لا
                 const isRegistered = order.status === 'registered';
-                
-                // تحديد الفئة واللون بناءً على حالة التسجيل
                 const cardClass = isRegistered ? 'table-card registered-table' : 'table-card';
                 const statusBadge = isRegistered 
                     ? '<span class="badge badge-registered">✅ تم التسجيل والتجهيز من الكاشير</span>' 
@@ -144,7 +162,6 @@
                             <span style="font-size: 11px; color: #7f8c8d;">رقم الأوردر: #${order.id}</span>
                         </div>
                         
-                        <!-- إضافة أصناف جديدة لنفس الطاولة المفتوحة -->
                         <div class="add-extra-box">
                             <label style="font-size: 12px; margin-bottom: 3px; font-weight: 600; color: #34495e;">إضافة أصناف جديدة للفاتورة:</label>
                             <input type="text" id="extra-items-${order.id}" placeholder="اكتب الأصناف الإضافية هنا..." style="padding: 8px; font-size: 13px; margin-bottom: 5px;">
@@ -172,7 +189,7 @@
         renderTables(filtered);
     }
 
-    // إضافة طاولة جديدة مع التحقق من عدم تكرارها وهي مشغولة
+    // إضافة طاولة جديدة مع إرسال إشعار تليجرام
     async function addNewTableOrder() {
         const tableNum = document.getElementById('tableNumber').value.trim();
         const items = document.getElementById('itemsDetails').value.trim();
@@ -198,14 +215,18 @@
         if(error) {
             alert("خطأ أثناء إرسال الطلب: " + error.message);
         } else {
-            alert("تم إرسال الطلب للكاشير بنجاح! 🚀");
+            // إرسال إشعار تليجرام عند فتح طاولة جديدة
+            const telegramMsg = `🔔 *طلب جديد في Helmy Bay*\n\n🍽️ *رقم الطاولة:* ${tableNum}\n🤵 *الكابتن:* ${currentWaiter}\n📝 *الطلبات:* ${items}`;
+            await sendTelegramNotification(telegramMsg);
+
+            alert("تم إرسال الطلب للكاشير وتليجرام بنجاح! 🚀");
             document.getElementById('tableNumber').value = '';
             document.getElementById('itemsDetails').value = '';
             loadActiveOrders();
         }
     }
 
-    // إضافة أصناف جديدة على نفس الطاولة وتحديث تفاصيلها
+    // إضافة أصناف جديدة على نفس الطاولة مع إرسال إشعار تليجرام
     async function addExtraToTable(orderId, tableNum, oldItems) {
         const extraInput = document.getElementById(`extra-items-${orderId}`);
         const extraText = extraInput.value.trim();
@@ -225,14 +246,18 @@
         if(error) {
             alert("خطأ في التحديث: " + error.message);
         } else {
-            alert("تم إضافة الطلب الجديد إلى الفاتورة وإرساله للكاشير بنجاح! 🔔");
+            // إرسال إشعار تليجرام بالأصناف الإضافية
+            const telegramMsg = `🔔 *تعديل / إضافة أصناف - Helmy Bay*\n\n🍽️ *رقم الطاولة:* ${tableNum}\n🤵 *الكابتن:* ${currentWaiter}\n➕ *الأصناف الإضافية:* ${extraText}`;
+            await sendTelegramNotification(telegramMsg);
+
+            alert("تم إضافة الطلب الجديد إلى الفاتورة وإرساله للكاشير وتليجرام بنجاح! 🔔");
             loadActiveOrders();
         }
     }
 
     // التحديث اللحظي الفوري لتغييرات الطاولات
     _supabase
-      .channel('public:orders:waiter:realtime')
+      .channel('public:orders:waiter:telegram')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Orders' }, payload => {
           loadActiveOrders();
       })
